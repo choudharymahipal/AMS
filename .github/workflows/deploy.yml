@@ -36,13 +36,18 @@ jobs:
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
-      - name: Build Angular app
-        run: npm run build -- --base-href "/${{ github.event.repository.name }}/"
+      - name: Build Angular app (production)
+        run: npm run build -- --configuration production --base-href "/${{ github.event.repository.name }}/"
+
+      - name: Show build output (for debugging)
+        run: |
+          echo "Files under dist/ (if any):"
+          if [ -d "dist" ]; then ls -R dist || true; else echo "dist/ not found"; fi
 
       - name: Upload build artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: dist/ams/browser/browser
+          path: dist/ams/browser
 
       - name: Deploy to GitHub Pages
         id: deployment
