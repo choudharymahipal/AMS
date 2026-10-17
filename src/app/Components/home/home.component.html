@@ -1,1 +1,266 @@
-<p>home works!</p>
+@if (!currentUser) {
+  <main class="login-screen">
+    <section class="login-card">
+      <a class="brand login-brand" href="#" aria-label="Daymark home">
+        <span class="brand-mark"><span></span><span></span><span></span><span></span></span>
+        <span>Day Mark</span>
+      </a>
+      <div class="login-copy">
+        <span class="eyebrow">YOUR WORKDAY, IN SYNC</span>
+        <h1>Welcome back</h1>
+        <p>Sign in to see your schedule, attendance and time off.</p>
+      </div>
+      <div class="role-switch" aria-label="Choose account type">
+        <button type="button" [class.selected]="loginRole === 'admin'" (click)="chooseLoginRole('admin')">Admin</button>
+        <button type="button" [class.selected]="loginRole === 'employee'" (click)="chooseLoginRole('employee')">Employee</button>
+      </div>
+      <form class="login-form" (ngSubmit)="login()">
+        <label for="login-email">Work email</label>
+        <input id="login-email" type="email" name="email" [(ngModel)]="loginEmail" required autocomplete="username">
+        <label for="login-password">Password</label>
+        <input id="login-password" type="password" name="password" [(ngModel)]="loginPassword" required autocomplete="current-password">
+        @if (loginError) { <p class="form-error" role="alert">{{ loginError }}</p> }
+        <button class="button button-primary sign-in-button" type="submit">Sign in <span>→</span></button>
+      </form>
+      <div class="demo-hint">
+        <span class="demo-dot"></span>
+        <div><strong>Demo access</strong><small>{{ loginRole === 'admin' ? 'admin@acme.com' : 'olivia@acme.com' }} <span>·</span> password</small></div>
+      </div>
+      <p class="login-footnote">Demo workspace · Your data stays in this browser</p>
+    </section>
+    <aside class="login-art">
+      <div class="art-top"><span class="art-dot"></span> PEOPLE, IN THE RIGHT PLACE</div>
+      <div class="art-message">
+        <span class="art-star">✳</span>
+        <h2>A little more<br>in sync, every day.</h2>
+        <p>Simple attendance, time off, and team updates — all in one calm place.</p>
+      </div>
+      <div class="floating-card float-attendance">
+        <span class="float-icon green-icon">✓</span><div><strong>You're all set</strong><small>Attendance marked · 9:02 AM</small></div>
+      </div>
+      <div class="floating-card float-team">
+        <div class="avatar-stack"><span class="avatar lavender">OR</span><span class="avatar peach">PB</span><span class="avatar mint">LS</span></div>
+        <div><strong>Good things happen</strong><small>when your team is in sync</small></div>
+      </div>
+      <div class="art-orbit orbit-one"></div><div class="art-orbit orbit-two"></div>
+      <span class="art-spark spark-one">✳</span><span class="art-spark spark-two">✦</span>
+      <div class="art-bottom">MADE FOR YOUR EVERYDAY <span>✦</span></div>
+    </aside>
+  </main>
+} @else {
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="#" aria-label="Daymark home" (click)="$event.preventDefault(); setView('overview')">
+        <span class="brand-mark"><span></span><span></span><span></span><span></span></span>
+        <span>Day Mark</span>
+      </a>
+      <div class="workspace-chip"><span class="workspace-icon">A</span><span><strong>Acme Studio</strong><small>Workspace</small></span><span class="chevron">⌄</span></div>
+      <span class="sidebar-label">WORKSPACE</span>
+      <nav class="side-nav" aria-label="Main navigation">
+        @for (item of visibleNavItems; track item.id) {
+          <button type="button" class="nav-item" [class.active]="activeView === item.id" (click)="setView(item.id)">
+            <span class="nav-icon">{{ item.icon }}</span><span>{{ item.label }}</span>
+            @if (item.id === 'leave' && pendingLeaveCount > 0 && isAdmin) { <span class="nav-count">{{ pendingLeaveCount }}</span> }
+          </button>
+        }
+      </nav>
+      <div class="sidebar-spacer"></div>
+      <div class="help-card"><span class="help-mark">?</span><strong>Need a hand?</strong><p>We’re here to help you find your way.</p><button type="button" (click)="setView('leave')">Explore time off <span>↗</span></button></div>
+      <button type="button" class="profile-button" (click)="logout()">
+        <span class="avatar" [ngClass]="currentUser.color">{{ currentUser.initials }}</span>
+        <span class="profile-copy"><strong>{{ currentUser.name }}</strong><small>{{ currentUser.role }}</small></span>
+        <span class="profile-menu">···</span>
+      </button>
+    </aside>
+
+    <main class="main-area">
+      <header class="topbar">
+        <div class="breadcrumbs"><span>Workspace</span><span class="crumb-slash">/</span><strong>{{ activeView === 'overview' ? 'Overview' : activeView === 'team' ? 'My team' : activeView === 'leave' ? 'Leave' : 'Attendance' }}</strong></div>
+        <div class="topbar-actions">
+          <span class="today-pill"><span class="live-dot"></span> {{ todayDisplay }}</span>
+          <button class="icon-button notification-button" type="button" aria-label="Notifications"><span>♧</span><i></i></button>
+          <button type="button" class="top-avatar avatar" [ngClass]="currentUser.color" (click)="logout()" [attr.aria-label]="'Sign out ' + currentUser.name">{{ currentUser.initials }}</button>
+        </div>
+      </header>
+
+      @if (activeView === 'overview') {
+        <section class="page-content">
+          <div class="welcome-row">
+            <div><span class="eyebrow">{{ todayDisplay }}</span><h1>{{ greeting }}, {{ currentUser.name.split(' ')[0] }} <span class="wave">✳</span></h1><p>{{ isAdmin ? 'Here’s what’s happening across your team today.' : 'Here’s your attendance and time off at a glance.' }}</p></div>
+            @if (!isAdmin) {
+              <button class="button button-primary" type="button" (click)="markAttendance()" [disabled]="!!todayRecord?.checkOut">
+                <span>{{ todayRecord ? (todayRecord.checkOut ? 'Day completed' : 'Check out') : 'Check in' }}</span><span class="button-arrow">→</span>
+              </button>
+            } @else {
+              <button class="button button-secondary" type="button" (click)="setView('attendance')"><span>View attendance</span><span class="button-arrow">→</span></button>
+            }
+          </div>
+
+          @if (isAdmin) {
+            <div class="stat-grid admin-stats">
+              <article class="stat-card">
+                <div class="stat-head"><span class="stat-icon icon-violet">◷</span><span class="stat-note positive">+4.2% <span>vs last week</span></span></div>
+                <p>Attendance rate</p><div class="stat-value">{{ attendanceRate }}<span>%</span></div><div class="stat-bottom"><div class="mini-progress"><span [style.width.%]="attendanceRate"></span></div><small>Today across your team</small></div>
+              </article>
+              <article class="stat-card">
+                <div class="stat-head"><span class="stat-icon icon-green">✓</span><span class="stat-note neutral">{{ employees.length }} team members</span></div>
+                <p>Present today</p><div class="stat-value">{{ presentCount }}<span class="stat-denom">/{{ employees.length }}</span></div><div class="stat-bottom"><div class="avatar-stack compact"><span class="avatar lavender">OR</span><span class="avatar peach">PB</span><span class="avatar blue">DW</span><span class="stack-more">+{{ employees.length - 3 }}</span></div><small>Checked in so far</small></div>
+              </article>
+              <article class="stat-card">
+                <div class="stat-head"><span class="stat-icon icon-amber">◌</span><span class="stat-note neutral">Needs your attention</span></div>
+                <p>Pending time off</p><div class="stat-value">{{ pendingLeaveCount }}<span class="stat-denom"> request{{ pendingLeaveCount === 1 ? '' : 's' }}</span></div><div class="stat-bottom"><button class="text-link" type="button" (click)="setView('leave')">Review requests <span>→</span></button></div>
+              </article>
+            </div>
+          } @else {
+            <div class="stat-grid employee-stats">
+              <article class="stat-card">
+                <div class="stat-head"><span class="stat-icon icon-violet">◷</span><span class="stat-note positive">On track</span></div>
+                <p>Days present</p><div class="stat-value">{{ rangeDaysPresent }}<span class="stat-denom"> this {{ selectedRange }}</span></div><div class="stat-bottom"><small>Your attendance, {{ selectedRange }}</small></div>
+              </article>
+              <article class="stat-card">
+                <div class="stat-head"><span class="stat-icon icon-green">◉</span><span class="stat-note positive">{{ todayRecord?.checkOut ? 'Completed' : todayRecord ? 'In progress' : 'Not checked in' }}</span></div>
+                <p>Today’s hours</p><div class="stat-value">{{ todayHours }}<span class="stat-denom">{{ todayRecord?.checkIn ? ' hrs' : '' }}</span></div><div class="stat-bottom"><small>{{ todayRecord?.checkIn ? 'Started at ' + todayRecord?.checkIn : 'Check in to start your day' }}</small></div>
+              </article>
+              <article class="stat-card">
+                <div class="stat-head"><span class="stat-icon icon-amber">✳</span><span class="stat-note neutral">Available to use</span></div>
+                <p>Time off balance</p><div class="stat-value">12<span class="stat-denom"> days</span></div><div class="stat-bottom"><button class="text-link" type="button" (click)="openLeaveForm()">Request time off <span>→</span></button></div>
+              </article>
+            </div>
+          }
+
+          <div class="content-grid">
+            <section class="panel attendance-panel">
+              <div class="panel-heading">
+                <div><h2>{{ isAdmin ? 'Team attendance' : 'Your attendance' }}</h2><p>{{ isAdmin ? 'A quick look at who’s here today.' : 'Your work week, at a glance.' }}</p></div>
+                <button type="button" class="button button-quiet" (click)="setView('attendance')">See all <span>→</span></button>
+              </div>
+              @if (!isAdmin) {
+                <div class="week-strip">
+                  @for (day of weekDates; track day.date) {
+                    <div class="week-day" [class.day-today]="day.isToday" [class.day-done]="day.record">
+                      <span>{{ day.label }}</span><strong>{{ day.day }}</strong><i>{{ day.record ? '✓' : day.isToday ? '•' : '–' }}</i>
+                    </div>
+                  }
+                </div>
+                <div class="checkin-note"><span class="note-icon">◷</span><span>{{ todayRecord?.checkIn ? 'Checked in at ' + todayRecord?.checkIn : 'You haven’t checked in yet today.' }}</span><button type="button" (click)="markAttendance()">{{ todayRecord?.checkOut ? 'Day complete' : todayRecord ? 'Check out' : 'Check in' }} <span>→</span></button></div>
+              } @else {
+                <div class="table-wrap">
+                  <table>
+                    <thead><tr><th>TEAM MEMBER</th><th>CHECK IN</th><th>CHECK OUT</th><th>STATUS</th></tr></thead>
+                    <tbody>
+                      @for (employee of employees; track employee.id) {
+                        <tr><td><div class="person-cell"><span class="avatar" [ngClass]="employee.color">{{ employee.initials }}</span><span><strong>{{ employee.name }}</strong><small>{{ employee.role }}</small></span></div></td><td>{{ attendanceFor(employee.id, today)?.checkIn || '—' }}</td><td>{{ attendanceFor(employee.id, today)?.checkOut || '—' }}</td><td><span class="status-pill" [ngClass]="attendanceFor(employee.id, today) ? 'status-present' : employee.id === 'emp-3' ? 'status-leave' : 'status-away'"><i></i>{{ attendanceFor(employee.id, today)?.status || (employee.id === 'emp-3' ? 'On leave' : 'Not checked in') }}</span></td></tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              }
+            </section>
+
+            <section class="panel leave-panel">
+              <div class="panel-heading">
+                <div><h2>{{ isAdmin ? 'Time off requests' : 'Your time off' }}</h2><p>{{ isAdmin ? 'Your team’s upcoming time away.' : 'Plans and requests, all in one place.' }}</p></div>
+                @if (!isAdmin) { <button type="button" class="plus-button" (click)="openLeaveForm()" aria-label="Request time off">+</button> }
+                @else { <button type="button" class="button button-quiet" (click)="setView('leave')">See all <span>→</span></button> }
+              </div>
+              <div class="request-list">
+                @for (request of visibleLeaveRequests.slice(0, 3); track request.id) {
+                  <div class="request-item">
+                    <span class="request-calendar"><small>{{ formatDatePart(request.from, 'month') }}</small><strong>{{ formatDatePart(request.from, 'day') }}</strong></span>
+                    <div class="request-copy"><strong>{{ isAdmin ? employeeName(request.employeeId) : request.type }}</strong><small>{{ isAdmin ? request.type : formatDate(request.from) + ' · ' + request.days + (request.days === 1 ? ' day' : ' days') }}</small></div>
+                    <span class="status-pill" [ngClass]="request.status === 'Pending' ? 'status-pending' : request.status === 'Approved' ? 'status-approved' : 'status-declined'">{{ request.status }}</span>
+                  </div>
+                } @empty {
+                  <div class="empty-state"><span>✳</span><strong>All caught up</strong><small>No time off requests to show.</small></div>
+                }
+              </div>
+              <button class="panel-footer-link" type="button" (click)="setView('leave')">View {{ isAdmin ? 'all requests' : 'your requests' }} <span>→</span></button>
+            </section>
+          </div>
+          <footer class="page-footer"><span>Made for your everyday <span>✦</span></span><span>DAYMARK · TEAM WORKSPACE</span></footer>
+        </section>
+      }
+
+      @if (activeView === 'attendance') {
+        <section class="page-content">
+          <div class="page-title-row"><div><span class="eyebrow">YOUR TIME, MADE CLEAR</span><h1>{{ isAdmin ? 'Attendance' : 'Your attendance' }}</h1><p>{{ isAdmin ? 'Stay up to date with your team’s workday.' : 'A clear view of your days, week by week.' }}</p></div><div class="range-switch"><button type="button" [class.selected]="selectedRange === 'week'" (click)="setRange('week')">Week</button><button type="button" [class.selected]="selectedRange === 'month'" (click)="setRange('month')">Month</button></div></div>
+          <section class="panel full-panel">
+            <div class="panel-heading"><div><h2>{{ rangeLabel }}’s records</h2><p>{{ isAdmin ? 'Attendance entries for your whole team.' : 'Only you can see your personal attendance.' }}</p></div><span class="record-count">{{ userAttendance.length }} records</span></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr>@if (isAdmin) { <th>TEAM MEMBER</th> }<th>DATE</th><th>CHECK IN</th><th>CHECK OUT</th><th>HOURS</th><th>STATUS</th></tr></thead>
+                <tbody>
+                  @for (record of userAttendance; track record.employeeId + record.date) {
+                    <tr>
+                      @if (isAdmin) { <td><div class="person-cell"><span class="avatar" [ngClass]="employeeById(record.employeeId)?.color">{{ employeeById(record.employeeId)?.initials }}</span><span><strong>{{ employeeName(record.employeeId) }}</strong><small>{{ employeeById(record.employeeId)?.role }}</small></span></div></td> }
+                      <td class="date-cell">{{ formatDate(record.date) }}</td><td>{{ record.checkIn || '—' }}</td><td>{{ record.checkOut || '—' }}</td><td>{{ record.checkOut ? '8h 24m' : record.checkIn ? 'In progress' : '—' }}</td><td><span class="status-pill" [ngClass]="record.status === 'Late' ? 'status-late' : 'status-present'"><i></i>{{ record.status }}</span></td>
+                    </tr>
+                  } @empty { <tr><td class="table-empty" [attr.colspan]="isAdmin ? 6 : 5">No attendance records for this {{ selectedRange }} yet.</td></tr> }
+                </tbody>
+              </table>
+            </div>
+          </section>
+          @if (!isAdmin) {
+            <section class="panel attendance-tip"><span class="tip-icon">✳</span><div><strong>A little note about your hours</strong><p>Hours are estimated from your check-in and check-out. Remember to check out when your day is done.</p></div></section>
+          }
+        </section>
+      }
+
+      @if (activeView === 'leave') {
+        <section class="page-content">
+          <div class="page-title-row"><div><span class="eyebrow">TAKE THE TIME YOU NEED</span><h1>{{ isAdmin ? 'Time off' : 'Your time off' }}</h1><p>{{ isAdmin ? 'Review requests and keep the team in balance.' : 'Plan ahead, request time away, and check your balance.' }}</p></div>@if (!isAdmin) { <button class="button button-primary" type="button" (click)="openLeaveForm()"><span>New request</span><span class="button-arrow">+</span></button> }</div>
+          @if (!isAdmin) {
+            <div class="leave-balance"><span class="balance-icon">✳</span><div><small>YOUR ANNUAL LEAVE BALANCE</small><strong>12 <span>days available</span></strong><p>You’ve used 3 of your 15 days this year.</p></div><div class="balance-progress"><span></span><small>80% remaining</small></div></div>
+          }
+          <section class="panel full-panel">
+            <div class="panel-heading"><div><h2>{{ isAdmin ? 'All requests' : 'Your requests' }}</h2><p>{{ isAdmin ? 'Review and respond to your team’s time off.' : 'Your time off history and upcoming plans.' }}</p></div>@if (isAdmin) { <span class="record-count">{{ pendingLeaveCount }} pending</span> }</div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr>@if (isAdmin) { <th>TEAM MEMBER</th> }<th>TYPE</th><th>DATES</th><th>DURATION</th><th>NOTE</th><th>STATUS</th>@if (isAdmin) { <th>ACTION</th> }</tr></thead>
+                <tbody>
+                  @for (request of visibleLeaveRequests; track request.id) {
+                    <tr>
+                      @if (isAdmin) { <td><div class="person-cell"><span class="avatar" [ngClass]="employeeById(request.employeeId)?.color">{{ employeeById(request.employeeId)?.initials }}</span><span><strong>{{ employeeName(request.employeeId) }}</strong><small>{{ employeeById(request.employeeId)?.role }}</small></span></div></td> }
+                      <td class="type-cell">{{ request.type }}</td><td>{{ formatDate(request.from) }}<br><small class="muted-text">to {{ formatDate(request.to) }}</small></td><td>{{ request.days }} {{ request.days === 1 ? 'day' : 'days' }}</td><td>{{ request.note || '—' }}</td><td><span class="status-pill" [ngClass]="request.status === 'Pending' ? 'status-pending' : request.status === 'Approved' ? 'status-approved' : 'status-declined'">{{ request.status }}</span></td>
+                      @if (isAdmin) { <td>@if (request.status === 'Pending') { <div class="row-actions"><button type="button" class="approve-button" (click)="updateLeaveStatus(request, 'Approved')" [attr.aria-label]="'Approve request from ' + employeeName(request.employeeId)">✓</button><button type="button" class="decline-button" (click)="updateLeaveStatus(request, 'Declined')" [attr.aria-label]="'Decline request from ' + employeeName(request.employeeId)">×</button></div> } @else { <span class="muted-text">Reviewed</span> }</td> }
+                    </tr>
+                  } @empty { <tr><td class="table-empty" [attr.colspan]="isAdmin ? 7 : 5">No time off requests yet. Take a moment for yourself when you need it.</td></tr> }
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+      }
+
+      @if (activeView === 'team' && isAdmin) {
+        <section class="page-content">
+          <div class="page-title-row"><div><span class="eyebrow">BETTER, TOGETHER</span><h1>My team</h1><p>Get to know the people you work with.</p></div><span class="team-count">{{ employees.length }} people <span>·</span> Acme Studio</span></div>
+          <section class="panel full-panel team-panel">
+            <div class="panel-heading"><div><h2>People</h2><p>Your workspace, all in one place.</p></div><label class="search-box"><span>⌕</span><input type="search" [(ngModel)]="searchTerm" placeholder="Search people" aria-label="Search team"></label></div>
+            <div class="team-grid">
+              @for (employee of filteredEmployees; track employee.id) {
+                <article class="team-card"><div class="team-card-top"><span class="avatar avatar-large" [ngClass]="employee.color">{{ employee.initials }}</span><span class="status-pill" [ngClass]="attendanceFor(employee.id, today) ? 'status-present' : 'status-away'"><i></i>{{ attendanceFor(employee.id, today) ? 'At work' : 'Away' }}</span></div><h3>{{ employee.name }}</h3><p>{{ employee.role }}</p><a [href]="'mailto:' + employee.email">{{ employee.email }} <span>↗</span></a><div class="team-card-foot"><span>Today</span><strong>{{ attendanceFor(employee.id, today)?.checkIn || 'Not checked in' }}</strong></div></article>
+              } @empty { <div class="empty-state"><span>⌕</span><strong>No people found</strong><small>Try another name or email.</small></div> }
+            </div>
+          </section>
+        </section>
+      }
+    </main>
+  </div>
+
+  @if (showLeaveForm) {
+    <div class="modal-backdrop" (click)="showLeaveForm = false">
+      <section class="leave-modal" role="dialog" aria-modal="true" aria-labelledby="leave-title" (click)="$event.stopPropagation()">
+        <button type="button" class="modal-close" (click)="showLeaveForm = false" aria-label="Close">×</button>
+        <span class="eyebrow">MAKE SPACE FOR WHAT MATTERS</span><h2 id="leave-title">Request time off</h2><p>We’ll send your request to your workspace admin.</p>
+        <form (ngSubmit)="submitLeaveRequest()">
+          <label for="leave-type">Type of leave</label><select id="leave-type" name="type" [(ngModel)]="leaveDraft.type"><option>Annual leave</option><option>Sick leave</option><option>Personal day</option><option>Other</option></select>
+          <div class="date-fields"><div><label for="leave-from">Start date</label><input id="leave-from" type="date" name="from" [(ngModel)]="leaveDraft.from" [min]="today" required></div><div><label for="leave-to">End date</label><input id="leave-to" type="date" name="to" [(ngModel)]="leaveDraft.to" [min]="leaveDraft.from || today" required></div></div>
+          <label for="leave-note">A note for your manager <span class="optional">(optional)</span></label><textarea id="leave-note" name="note" rows="3" [(ngModel)]="leaveDraft.note" placeholder="Add a little context..."></textarea>
+          @if (leaveError) { <p class="form-error" role="alert">{{ leaveError }}</p> }
+          <div class="modal-actions"><button class="button button-secondary" type="button" (click)="showLeaveForm = false">Cancel</button><button class="button button-primary" type="submit">Send request <span>→</span></button></div>
+        </form>
+      </section>
+    </div>
+  }
+}
